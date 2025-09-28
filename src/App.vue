@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <h1>YouTube 再生アプリ（開始位置再生対応）</h1>
+    <h1>YouTube 再生アプリ（スマホ横向き対応）</h1>
 
     <!-- レスポンシブプレイヤー -->
     <div class="player" v-if="currentVideo">
@@ -57,7 +57,7 @@ export default {
         this.videos = data
         if (data.length > 0) {
           this.currentVideoIndex = 0
-          this.updateVideoUrl(0, false) // 最初は自動再生しない
+          this.updateVideoUrl(0, false) // 初回は自動再生なし
         }
       })
   },
@@ -75,7 +75,7 @@ export default {
   methods: {
     selectVideo(index) {
       this.currentVideoIndex = index
-      this.updateVideoUrl(index, true) // 選択時は自動再生（PC）
+      this.updateVideoUrl(index, true) // 選択時自動再生（PC）
     },
     updateVideoUrl(index, autoplay) {
       const video = this.videos[index]
@@ -112,6 +112,13 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
+}
+
+/* スマホ横向きで高さを小さく */
+@media (max-width: 600px) and (orientation: landscape) {
+  .iframe-container {
+    padding-top: 35%; /* 高さを低くして一覧を収める */
+  }
 }
 
 /* カルーセル */
@@ -181,10 +188,6 @@ export default {
 @media (max-width: 600px) {
   .video-item {
     flex: 0 0 70%;
-  }
-
-  .iframe-container {
-    padding-top: 56.25%;
   }
 }
 </style>
