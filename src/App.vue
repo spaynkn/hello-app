@@ -1,6 +1,7 @@
 <template>
   <div id="app">
-    <h1>YouTube 再生アプリ（スマホ横向き対応）</h1>
+    <!-- サイトタイトル -->
+    <h1 class="site-title">YouTube 再生アプリ（検索対応）</h1>
 
     <!-- レスポンシブプレイヤー -->
     <div class="player" v-if="currentVideo">
@@ -14,19 +15,34 @@
       </div>
     </div>
 
+    <!-- 検索フォーム -->
+    <div class="search-bar">
+      <input
+        type="text"
+        v-model="searchQuery"
+        placeholder="動画タイトルを検索"
+        @keyup.enter="performSearch"
+      />
+      <button @click="performSearch">検索</button>
+      <button v-if="searchQuery" class="clear-btn" @click="clearSearch">クリア</button>
+    </div>
+
     <!-- カルーセル -->
     <div class="carousel-wrapper">
       <div class="carousel" ref="carousel">
         <div
           class="video-item"
-          v-for="(video, index) in videos"
+          v-for="(video, index) in filteredVideos"
           :key="index"
-          @click="selectVideo(index)"
-          :class="{ active: currentVideoIndex === index }"
+          @click="selectVideoByFiltered(index)"
+          :class="{ active: currentVideoIndex === video.originalIndex }"
         >
           <img :src="video.thumbnail" alt="thumbnail" class="thumbnail" />
           <div class="info">
-            <span class="title">{{ video.title }}</span>
+            <div class="title-container">
+              <span class="title">{{ video.title }}</span>
+              <span class="tooltip">{{ video.title }}</span>
+            </div>
             <span class="duration">{{ video.duration }}</span>
           </div>
         </div>
@@ -42,7 +58,9 @@ export default {
     return {
       videos: [],
       currentVideoIndex: 0,
-      currentVideoUrl: ""
+      currentVideoUrl: "",
+      searchQuery: "",
+      filteredVideos: []
     }
   },
   computed: {
@@ -54,10 +72,12 @@ export default {
     fetch("https://raw.githubusercontent.com/spaynkn/external/refs/heads/main/videos.json")
       .then(res => res.json())
       .then(data => {
-        this.videos = data
-        if (data.length > 0) {
+        // 元データにオリジナルのインデックスを追加
+        this.videos = data.map((v, i) => ({ ...v, originalIndex: i }))
+        this.filteredVideos = [...this.videos]
+        if (this.videos.length > 0) {
           this.currentVideoIndex = 0
-          this.updateVideoUrl(0, false) // 初回は自動再生なし
+          this.updateVideoUrl(0, false)
         }
       })
   },
@@ -73,9 +93,14 @@ export default {
     })
   },
   methods: {
+    selectVideoByFiltered(filteredIndex) {
+      const video = this.filteredVideos[filteredIndex]
+      this.currentVideoIndex = video.originalIndex
+      this.updateVideoUrl(video.originalIndex, true)
+    },
     selectVideo(index) {
       this.currentVideoIndex = index
-      this.updateVideoUrl(index, true) // 選択時自動再生（PC）
+      this.updateVideoUrl(index, true)
     },
     updateVideoUrl(index, autoplay) {
       const video = this.videos[index]
@@ -85,6 +110,20 @@ export default {
       this.currentVideoUrl = isPC && autoplay
         ? `${baseUrl}?autoplay=1&start=${start}`
         : `${baseUrl}?autoplay=0&start=${start}`
+    },
+    performSearch() {
+      const query = this.searchQuery.trim().toLowerCase()
+      if (!query) {
+        this.filteredVideos = [...this.videos]
+        return
+      }
+      this.filteredVideos = this.videos.filter(v =>
+        v.title.toLowerCase().includes(query)
+      )
+    },
+    clearSearch() {
+      this.searchQuery = ""
+      this.filteredVideos = [...this.videos]
     }
   }
 }
@@ -96,6 +135,17 @@ export default {
   margin: 0 auto;
   font-family: sans-serif;
   text-align: center;
+}
+
+/* サイトタイトル */
+.site-title {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1.5em;
+  margin-bottom: 20px;
+  box-sizing: border-box;
 }
 
 /* レスポンシブプレイヤー */
@@ -114,11 +164,54 @@ export default {
   height: 100%;
 }
 
-/* スマホ横向きで高さを小さく */
-@media (max-width: 600px) and (orientation: landscape) {
+/* 横向きスマホ対応 */
+@media (max-width: 900px) and (orientation: landscape) {
   .iframe-container {
-    padding-top: 35%; /* 高さを低くして一覧を収める */
+    padding-top: 40%;
   }
+}
+
+/* 検索バー */
+.search-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 15px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.9em;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.search-bar button {
+  padding: 6px 10px;
+  font-size: 0.9em;
+  border-radius: 4px;
+  border: 1px solid #007bff;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.search-bar button:hover {
+  background-color: #0056b3;
+}
+
+.clear-btn {
+  background-color: #ccc;
+  border-color: #999;
+  color: #333;
+}
+
+.clear-btn:hover {
+  background-color: #999;
+  color: #fff;
 }
 
 /* カルーセル */
@@ -174,9 +267,41 @@ export default {
   flex-direction: column;
 }
 
+/* タイトル省略 + ツールチップ */
+.title-container {
+  position: relative;
+  display: inline-block;
+}
+
 .title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: bold;
   font-size: 0.9em;
+}
+
+.tooltip {
+  visibility: hidden;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.title-container:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
 }
 
 .duration {
@@ -185,7 +310,7 @@ export default {
 }
 
 /* レスポンシブ対応 */
-@media (max-width: 600px) {
+@media (max-width: 900px) {
   .video-item {
     flex: 0 0 70%;
   }
