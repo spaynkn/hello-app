@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <!-- サイトタイトル -->
-    <h1 class="site-title">YouTube 再生アプリ（検索対応）</h1>
+    <h1 class="site-title">YouTube 再生アプリ（検索＋スマホズーム防止対応）</h1>
 
     <!-- レスポンシブプレイヤー -->
     <div class="player" v-if="currentVideo">
@@ -72,7 +72,6 @@ export default {
     fetch("https://raw.githubusercontent.com/spaynkn/external/refs/heads/main/videos.json")
       .then(res => res.json())
       .then(data => {
-        // 元データにオリジナルのインデックスを追加
         this.videos = data.map((v, i) => ({ ...v, originalIndex: i }))
         this.filteredVideos = [...this.videos]
         if (this.videos.length > 0) {
@@ -82,7 +81,6 @@ export default {
       })
   },
   mounted() {
-    // ホイールで横スクロール
     this.$refs.carousel.addEventListener("wheel", (e) => {
       if (e.deltaY === 0) return
       e.preventDefault()
@@ -97,10 +95,6 @@ export default {
       const video = this.filteredVideos[filteredIndex]
       this.currentVideoIndex = video.originalIndex
       this.updateVideoUrl(video.originalIndex, true)
-    },
-    selectVideo(index) {
-      this.currentVideoIndex = index
-      this.updateVideoUrl(index, true)
     },
     updateVideoUrl(index, autoplay) {
       const video = this.videos[index]
@@ -152,7 +146,7 @@ export default {
 .iframe-container {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 */
+  padding-top: 56.25%;
   margin-bottom: 20px;
 }
 
@@ -164,14 +158,13 @@ export default {
   height: 100%;
 }
 
-/* 横向きスマホ対応 */
 @media (max-width: 900px) and (orientation: landscape) {
   .iframe-container {
     padding-top: 40%;
   }
 }
 
-/* 検索バー */
+/* 検索バー（スマホ拡大防止） */
 .search-bar {
   display: flex;
   justify-content: center;
@@ -183,9 +176,10 @@ export default {
 .search-bar input {
   flex: 1;
   padding: 6px 8px;
-  font-size: 0.9em;
+  font-size: 16px; /* 16px以上でスマホズーム防止 */
   border-radius: 4px;
   border: 1px solid #ccc;
+  -webkit-text-size-adjust: 100%; /* iOS Safari用 */
 }
 
 .search-bar button {
@@ -309,7 +303,6 @@ export default {
   color: #666;
 }
 
-/* レスポンシブ対応 */
 @media (max-width: 900px) {
   .video-item {
     flex: 0 0 70%;
