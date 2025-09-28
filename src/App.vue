@@ -1,32 +1,34 @@
 <template>
   <div id="app">
-    <h1>YouTube 再生アプリ（スマホ対応スナップカルーセル）</h1>
+    <h1>YouTube 再生アプリ（開始位置再生対応）</h1>
 
-    <!-- プレイヤー -->
+    <!-- レスポンシブプレイヤー -->
     <div class="player" v-if="currentVideo">
-      <iframe
-        width="100%"
-        height="200"
-        :src="currentVideo.url"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-      ></iframe>
+      <div class="iframe-container">
+        <iframe
+          :src="currentVideoUrl"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
     </div>
 
-    <!-- スナップカルーセル -->
-    <div class="carousel">
-      <div
-        class="video-item"
-        v-for="(video, index) in videos"
-        :key="index"
-        @click="selectVideo(video)"
-        :class="{ active: currentVideo && video.url === currentVideo.url }"
-      >
-        <img :src="video.thumbnail" alt="thumbnail" class="thumbnail" />
-        <div class="info">
-          <span class="title">{{ video.title }}</span>
-          <span class="duration">{{ video.duration }}</span>
+    <!-- カルーセル -->
+    <div class="carousel-wrapper">
+      <div class="carousel" ref="carousel">
+        <div
+          class="video-item"
+          v-for="(video, index) in videos"
+          :key="index"
+          @click="selectVideo(index)"
+          :class="{ active: currentVideoIndex === index }"
+        >
+          <img :src="video.thumbnail" alt="thumbnail" class="thumbnail" />
+          <div class="info">
+            <span class="title">{{ video.title }}</span>
+            <span class="duration">{{ video.duration }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -39,7 +41,13 @@ export default {
   data() {
     return {
       videos: [],
-      currentVideo: null
+      currentVideoIndex: 0,
+      currentVideoUrl: ""
+    }
+  },
+  computed: {
+    currentVideo() {
+      return this.videos[this.currentVideoIndex]
     }
   },
   created() {
@@ -48,13 +56,35 @@ export default {
       .then(data => {
         this.videos = data
         if (data.length > 0) {
-          this.currentVideo = data[0]
+          this.currentVideoIndex = 0
+          this.updateVideoUrl(0, false) // 最初は自動再生しない
         }
       })
   },
+  mounted() {
+    // ホイールで横スクロール
+    this.$refs.carousel.addEventListener("wheel", (e) => {
+      if (e.deltaY === 0) return
+      e.preventDefault()
+      this.$refs.carousel.scrollBy({
+        left: e.deltaY,
+        behavior: "smooth"
+      })
+    })
+  },
   methods: {
-    selectVideo(video) {
-      this.currentVideo = video
+    selectVideo(index) {
+      this.currentVideoIndex = index
+      this.updateVideoUrl(index, true) // 選択時は自動再生（PC）
+    },
+    updateVideoUrl(index, autoplay) {
+      const video = this.videos[index]
+      const baseUrl = video.url.split('?')[0]
+      const start = video.start || 0
+      const isPC = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      this.currentVideoUrl = isPC && autoplay
+        ? `${baseUrl}?autoplay=1&start=${start}`
+        : `${baseUrl}?autoplay=0&start=${start}`
     }
   }
 }
@@ -68,18 +98,35 @@ export default {
   text-align: center;
 }
 
-.player {
+/* レスポンシブプレイヤー */
+.iframe-container {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
   margin-bottom: 20px;
 }
 
-/* スナップカルーセル */
+.iframe-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* カルーセル */
+.carousel-wrapper {
+  overflow: hidden;
+}
+
 .carousel {
   display: flex;
+  flex-wrap: nowrap;
   overflow-x: auto;
   gap: 10px;
-  scroll-snap-type: x mandatory; /* スナップ設定 */
+  scroll-snap-type: x mandatory;
   padding: 5px 0;
-  -webkit-overflow-scrolling: touch; /* iOSスムーズスクロール */
+  -webkit-overflow-scrolling: touch;
 }
 
 .carousel::-webkit-scrollbar {
@@ -92,8 +139,8 @@ export default {
 }
 
 .video-item {
-  flex: 0 0 70%; /* スマホで1枚70%幅 */
-  scroll-snap-align: start; /* スナップ位置 */
+  flex: 0 0 150px;
+  scroll-snap-align: start;
   cursor: pointer;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -105,7 +152,7 @@ export default {
 .video-item.active {
   background-color: #f0f8ff;
   border-color: #00f;
-  transform: scale(1.05); /* 選択中は少し拡大 */
+  transform: scale(1.05);
 }
 
 .thumbnail {
@@ -131,13 +178,13 @@ export default {
 }
 
 /* レスポンシブ対応 */
-@media (min-width: 600px) {
+@media (max-width: 600px) {
   .video-item {
-    flex: 0 0 150px; /* PCは固定幅 */
+    flex: 0 0 70%;
   }
 
-  .player iframe {
-    height: 315px;
+  .iframe-container {
+    padding-top: 56.25%;
   }
 }
 </style>
