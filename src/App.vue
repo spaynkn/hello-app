@@ -37,7 +37,10 @@
           @click="selectVideoByFiltered(index)"
           :class="{ active: currentVideoIndex === video.originalIndex }"
         >
-          <img :src="video.thumbnail" alt="thumbnail" class="thumbnail" />
+          <!-- サムネイルを16:9固定で表示 -->
+          <div class="thumb-wrapper">
+            <img :src="video.thumbnail" alt="thumbnail" class="thumbnail" />
+          </div>
           <div class="info">
             <div class="title-container">
               <span class="title">{{ video.title }}</span>
@@ -74,7 +77,6 @@ export default {
     fetch("https://raw.githubusercontent.com/spaynkn/external/refs/heads/main/videos.json")
       .then(res => res.json())
       .then(data => {
-        // 元データにオリジナルインデックスを追加
         this.videos = data.map((v, i) => ({ ...v, originalIndex: i }))
         this.filteredVideos = [...this.videos]
         this.updateDisplayVideos()
@@ -85,10 +87,7 @@ export default {
       })
   },
   mounted() {
-    // 横スクロールで追加表示
     this.$refs.carousel.addEventListener("scroll", this.onCarouselScroll)
-
-    // ホイールで横スクロール
     this.$refs.carousel.addEventListener("wheel", (e) => {
       if (e.deltaY === 0) return
       e.preventDefault()
@@ -118,11 +117,11 @@ export default {
       if (!query) {
         this.filteredVideos = [...this.videos]
       } else {
+        const keywords = query.split(/[\s\u3000]+/).filter(Boolean)
         this.filteredVideos = this.videos.filter(v =>
-          v.title.toLowerCase().includes(query)
+          keywords.every(k => v.title.toLowerCase().includes(k))
         )
       }
-      // 検索時は表示件数を初期化
       this.displayCount = 10
       this.updateDisplayVideos()
     },
@@ -154,6 +153,7 @@ export default {
   margin: 0 auto;
   font-family: sans-serif;
   text-align: center;
+  box-sizing: border-box;
 }
 
 /* サイトタイトル */
@@ -248,6 +248,8 @@ export default {
   scroll-snap-type: x mandatory;
   padding: 5px 0;
   -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  transform: translateZ(0);
 }
 
 .carousel::-webkit-scrollbar {
@@ -260,7 +262,7 @@ export default {
 }
 
 .video-item {
-  flex: 0 0 150px;
+  flex: 0 0 150px; /* 固定幅 */
   scroll-snap-align: start;
   cursor: pointer;
   border: 1px solid #ddd;
@@ -268,6 +270,7 @@ export default {
   padding: 5px;
   transition: transform 0.2s, background 0.2s;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .video-item.active {
@@ -276,9 +279,11 @@ export default {
   transform: scale(1.05);
 }
 
+/* サムネイルを必ず16:9に統一 */
 .thumbnail {
   width: 100%;
-  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
   border-radius: 4px;
   margin-bottom: 5px;
 }
@@ -286,12 +291,15 @@ export default {
 .info {
   display: flex;
   flex-direction: column;
+  width: 100%; /* 親に揃える */
+  box-sizing: border-box;
 }
 
 /* タイトル省略 + ツールチップ */
 .title-container {
   position: relative;
-  display: inline-block;
+  display: block; /* inline-block→block */
+  width: 100%;
 }
 
 .title {
@@ -299,7 +307,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: bold;
-  font-size: 0.9em;
+  font-size: 0.8em;
 }
 
 .tooltip {
@@ -330,9 +338,11 @@ export default {
   color: #666;
 }
 
+/* スマホ対応 */
 @media (max-width: 900px) {
   .video-item {
     flex: 0 0 70%;
   }
 }
+
 </style>
