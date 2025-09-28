@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <!-- サイトタイトル -->
-    <h1 class="site-title">YouTube 再生アプリ（検索＋スマホズーム防止対応）</h1>
+    <h1 class="site-title">YouTube 再生アプリ（検索＋初期10件表示）</h1>
 
     <!-- レスポンシブプレイヤー -->
     <div class="player" v-if="currentVideo">
@@ -32,7 +32,7 @@
       <div class="carousel" ref="carousel">
         <div
           class="video-item"
-          v-for="(video, index) in filteredVideos"
+          v-for="(video, index) in displayVideos"
           :key="index"
           @click="selectVideoByFiltered(index)"
           :class="{ active: currentVideoIndex === video.originalIndex }"
@@ -57,10 +57,12 @@ export default {
   data() {
     return {
       videos: [],
+      filteredVideos: [],
+      displayVideos: [],
+      displayCount: 10,
       currentVideoIndex: 0,
       currentVideoUrl: "",
-      searchQuery: "",
-      filteredVideos: []
+      searchQuery: ""
     }
   },
   computed: {
@@ -72,8 +74,10 @@ export default {
     fetch("https://raw.githubusercontent.com/spaynkn/external/refs/heads/main/videos.json")
       .then(res => res.json())
       .then(data => {
+        // 元データにオリジナルインデックスを追加
         this.videos = data.map((v, i) => ({ ...v, originalIndex: i }))
         this.filteredVideos = [...this.videos]
+        this.updateDisplayVideos()
         if (this.videos.length > 0) {
           this.currentVideoIndex = 0
           this.updateVideoUrl(0, false)
@@ -81,6 +85,10 @@ export default {
       })
   },
   mounted() {
+    // 横スクロールで追加表示
+    this.$refs.carousel.addEventListener("scroll", this.onCarouselScroll)
+
+    // ホイールで横スクロール
     this.$refs.carousel.addEventListener("wheel", (e) => {
       if (e.deltaY === 0) return
       e.preventDefault()
@@ -92,7 +100,7 @@ export default {
   },
   methods: {
     selectVideoByFiltered(filteredIndex) {
-      const video = this.filteredVideos[filteredIndex]
+      const video = this.displayVideos[filteredIndex]
       this.currentVideoIndex = video.originalIndex
       this.updateVideoUrl(video.originalIndex, true)
     },
@@ -109,15 +117,32 @@ export default {
       const query = this.searchQuery.trim().toLowerCase()
       if (!query) {
         this.filteredVideos = [...this.videos]
-        return
+      } else {
+        this.filteredVideos = this.videos.filter(v =>
+          v.title.toLowerCase().includes(query)
+        )
       }
-      this.filteredVideos = this.videos.filter(v =>
-        v.title.toLowerCase().includes(query)
-      )
+      // 検索時は表示件数を初期化
+      this.displayCount = 10
+      this.updateDisplayVideos()
     },
     clearSearch() {
       this.searchQuery = ""
       this.filteredVideos = [...this.videos]
+      this.displayCount = 10
+      this.updateDisplayVideos()
+    },
+    updateDisplayVideos() {
+      this.displayVideos = this.filteredVideos.slice(0, this.displayCount)
+    },
+    onCarouselScroll() {
+      const carousel = this.$refs.carousel
+      if (carousel.scrollLeft + carousel.clientWidth >= carousel.scrollWidth - 10) {
+        if (this.displayCount < this.filteredVideos.length) {
+          this.displayCount += 10
+          this.updateDisplayVideos()
+        }
+      }
     }
   }
 }
@@ -148,6 +173,8 @@ export default {
   width: 100%;
   padding-top: 56.25%;
   margin-bottom: 20px;
+  border-radius: 12px; /* プレイヤー角丸 */
+  overflow: hidden;
 }
 
 .iframe-container iframe {
@@ -176,10 +203,10 @@ export default {
 .search-bar input {
   flex: 1;
   padding: 6px 8px;
-  font-size: 16px; /* 16px以上でスマホズーム防止 */
+  font-size: 16px; /* 16px以上でズーム防止 */
   border-radius: 4px;
   border: 1px solid #ccc;
-  -webkit-text-size-adjust: 100%; /* iOS Safari用 */
+  -webkit-text-size-adjust: 100%;
 }
 
 .search-bar button {
